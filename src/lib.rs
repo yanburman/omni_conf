@@ -74,14 +74,13 @@ impl ConfigManager {
                 }
                 #[cfg(not(feature = "json"))]
                 {
-                    return Err(ConfigError::FeatureMissing("json".to_string()));
+                    Err(ConfigError::FeatureMissing("json".to_string()));
                 }
             }
             Format::Toml => {
                 #[cfg(feature = "toml")]
                 {
-                    return toml::from_str(&data)
-                        .map_err(|e| ConfigError::Deserialization(e.to_string()));
+                    toml::from_str(&data).map_err(|e| ConfigError::Deserialization(e.to_string()))
                 }
                 #[cfg(not(feature = "toml"))]
                 {
@@ -119,7 +118,7 @@ impl ConfigManager {
                 }
                 #[cfg(not(feature = "json"))]
                 {
-                    return Err(ConfigError::FeatureMissing("json".to_string()));
+                    Err(ConfigError::FeatureMissing("json".to_string()))
                 }
             }
             Format::Toml => {
