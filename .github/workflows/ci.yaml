@@ -6,13 +6,18 @@ on:
   pull_request:
     branches: [ main ]
 
+# This prevents multiple runs from the same branch from overlapping
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Test on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false # Don't kill Windows/Mac if Linux fails
       matrix:
-        # Testing on all three major desktop OSs
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     steps:
@@ -25,15 +30,20 @@ jobs:
           components: clippy, rustfmt
 
       - name: Rust Cache
-        # This saves your 'target' folder to speed up future runs
         uses: Swatinem/rust-cache@v2
+        # If the cache service hangs or throws punycode warnings, 
+        # continue the build anyway instead of canceling.
+        continue-on-error: true
+        with:
+          shared-key: "omni-conf-cache"
 
       - name: Check formatting
         run: cargo fmt --all -- --check
 
       - name: Run Clippy
+        # Ensures your cross-platform logic is clean
         run: cargo clippy --all-features -- -D warnings
 
       - name: Run Tests
-        # Runs tests with all features (JSON and TOML)
+        # The primary goal: verifies everything works
         run: cargo test --all-features
