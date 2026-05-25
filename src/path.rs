@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-/// Sanitizes strings to be safe for directory names (alphanumeric, -, _)
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
 fn sanitize(s: &str) -> String {
     s.chars()
         .map(|c| {
@@ -21,10 +21,33 @@ pub fn get_config_dir(qualifier: &str, org: &str, app: &str) -> Option<PathBuf> 
 
 #[cfg(target_os = "android")]
 pub fn get_config_dir(_q: &str, _o: &str, _a: &str) -> Option<PathBuf> {
-    // Requires ndk-context to be initialized by the app runner
     let ctx = ndk_context::android_context();
-    let data_dir = ctx.internal_data_path()?;
-    Some(PathBuf::from(data_dir).join("config"))
+    // SAFETY: android_context is initialized by android-activity before Rust runs.
+    let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) };
+    vm.attach_current_thread(|env| -> jni::errors::Result<PathBuf> {
+        // SAFETY: ctx.context() is the Android Context jobject, valid for the app lifetime.
+        let activity = unsafe { jni::objects::JObject::from_raw(env, ctx.context().cast()) };
+        let files_dir = env
+            .call_method(
+                &activity,
+                jni::jni_str!("getFilesDir"),
+                jni::jni_sig!("()Ljava/io/File;"),
+                &[],
+            )?
+            .l()?;
+        let path_obj = env
+            .call_method(
+                &files_dir,
+                jni::jni_str!("getAbsolutePath"),
+                jni::jni_sig!("()Ljava/lang/String;"),
+                &[],
+            )?
+            .l()?;
+        let path_jstr = env.cast_local::<jni::objects::JString>(path_obj)?;
+        let path = path_jstr.try_to_string(env)?;
+        Ok(PathBuf::from(path).join("config"))
+    })
+    .ok()
 }
 
 #[cfg(target_os = "ios")]

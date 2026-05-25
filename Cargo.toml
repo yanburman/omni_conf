@@ -35,6 +35,7 @@ directories = { version = "6.0", default-features = false }
 # Android
 [target.'cfg(target_os = "android")'.dependencies]
 ndk-context = { version = "0.1.1", default-features = false }
+jni = { version = "0.22", default-features = false }
 
 # iOS
 [target.'cfg(target_os = "ios")'.dependencies]
